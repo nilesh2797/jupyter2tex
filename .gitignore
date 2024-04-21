@@ -2,3 +2,6 @@
 *.log
 *.pdf
 *.tex
+*.ipynb
+*.fls
+*.fdb_latexmk
