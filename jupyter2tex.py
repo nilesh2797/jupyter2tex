@@ -52,10 +52,32 @@ def enumerate(line):
     
     # ELSE
     return ''.join(pre) + line
-
+def process_hlines(line):
+    lines = line.split("\n")
+    for i in range(len(lines)):
+        line = lines[i]
+        count = 0
+        for c in line:
+            if c == '-':
+                count += 1
+            if not (c.isspace() or c == '-'):
+                break
+        if count >= 3:
+            lines[i] = "\n\\noindent\\rule{\\textwidth}{1pt}"
+    return ''.join(lines)
+def markdown_to_latex_link(markdown_link):
+    match = re.match(r'\[([^\]]+)\]\((.*?)\)', markdown_link)
+    if match:
+        link_text = match.group(1)
+        url = match.group(2)
+        latex_link = f'\\href{{{url}}}{{{link_text}}}'
+        return latex_link
+    else:
+        return None
 def preprocess(line):
     # replace any *_* with *\_*
     line = line.replace('_','\_')
+    line = re.sub(r'\[([^\]]+)\]\((.*?)\)', lambda match: markdown_to_latex_link(match.group(0)), line)
     # replace anything within ** with \textbf{...}
     # BOLD AND ITALIC
     line = re.sub(r'\*\*(.*?)\*\*', r'\\textbf{\1}', line)
@@ -64,6 +86,8 @@ def preprocess(line):
     # ENUMERATE
     line = enumerate(line)
 
+    # HLINES
+    line = process_hlines(line)
     # DONE
     return line
 
@@ -81,7 +105,7 @@ def is_part_of_special_block(line, began_math, began_verbatim):
     return line.startswith('```') or line.startswith('$') or line.startswith('$$') or line.startswith('```') or began_math or began_verbatim
 
 def markdown_to_latex(lines):
-    latex_lines = ['\\documentclass{article}\n\\usepackage{graphicx}\n\\begin{document}']
+    latex_lines = ['\\documentclass{article}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\begin{document}']
     began_verbatim = False; began_math = False
     lines = [y.strip() for x in lines for y in split_on_dollar_signs(x)]
     lines = [y.strip() for x in lines for y in split_on_verbatim_signs(x)]
