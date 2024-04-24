@@ -6,3 +6,5 @@
 *.ipynb
 *.fls
 *.fdb_latexmk
+*.synctex.gz
+Results*
