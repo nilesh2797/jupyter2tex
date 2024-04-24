@@ -1,8 +1,16 @@
 from jupyter_notebook_parser import JupyterNotebookParser
 import re, os
 
-parsed = JupyterNotebookParser('sample.ipynb')
+parsed = JupyterNotebookParser('sample2.ipynb')
+all_cells = parsed.get_all_cells()
+all_cells_simplified = []
+for x in all_cells:
+    type = x['cell_type']
+    source = [c for c in x['source']]
+    all_cells_simplified.append((type, source))
+print(all_cells_simplified)
 all_markdown_lines = [y for x in parsed.get_markdown_cell_sources() for y in x.split('\n')]
+print(all_markdown_lines)
 enum_i = []
 
 def count_spaces(l):
@@ -52,6 +60,22 @@ def enumerate(line):
     
     # ELSE
     return ''.join(pre) + line
+def first_non_whitespace(s):
+    for c in s:
+        if not c.isspace():
+            return c
+    return -1 
+item_i = []
+def itemize(line):
+    global item_i
+    if first_non_whitespace(line) == -1 or first_non_whitespace(line) != '-':
+        item_i = 0
+        return line
+    pre = []
+    level, l = count_spaces(line)
+    if level == len(item_i):
+        pass
+
 def process_hlines(line):
     lines = line.split("\n")
     for i in range(len(lines)):
@@ -104,42 +128,51 @@ def split_on_verbatim_signs(text):
 def is_part_of_special_block(line, began_math, began_verbatim):
     return line.startswith('```') or line.startswith('$') or line.startswith('$$') or line.startswith('```') or began_math or began_verbatim
 
-def markdown_to_latex(lines):
+def markdown_to_latex(cells):
     latex_lines = ['\\documentclass{article}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\begin{document}']
-    began_verbatim = False; began_math = False
-    lines = [y.strip() for x in lines for y in split_on_dollar_signs(x)]
-    lines = [y.strip() for x in lines for y in split_on_verbatim_signs(x)]
-    for line in lines:
-        if not is_part_of_special_block(line, began_math, began_verbatim):
-            line = preprocess(line)
+    for cell in cells:
+        if cell[0] == 'markdown':
+            lines = cell[1]
+            began_verbatim = False; began_math = False
+            lines = [y.strip() for x in lines for y in split_on_dollar_signs(x)]
+            lines = [y.strip() for x in lines for y in split_on_verbatim_signs(x)]
+            for line in lines:
+                if not is_part_of_special_block(line, began_math, began_verbatim):
+                    line = preprocess(line)
 
-        # Convert headers
-        if line.startswith('# '):
-            latex_lines.append('\\section{' + line[2:] + '}')
-        elif line.startswith('## '):
-            latex_lines.append('\\subsection{' + line[3:] + '}')
-        elif line.startswith('### '):
-            latex_lines.append('\\subsubsection{' + line[4:] + '}')
-        # Convert code blocks
-        elif line == '```':
-            if latex_lines and began_verbatim:
-                latex_lines.append('\\end{verbatim}')
-                began_verbatim = False
-            else:
-                latex_lines.append('\\begin{verbatim}')
-                began_verbatim = True
-        # Inline code
-        elif line[0] == '`' and line[-1] == '`':
-            latex_lines.append('\\texttt{' + line.replace('`', '') + '}')
-        # Math blocks
-        elif line == '$' or line == '$$':
-            began_math = not began_math
+                # Convert headers
+                if line.startswith('# '):
+                    latex_lines.append('\\section{' + line[2:] + '}')
+                elif line.startswith('## '):
+                    latex_lines.append('\\subsection{' + line[3:] + '}')
+                elif line.startswith('### '):
+                    latex_lines.append('\\subsubsection{' + line[4:] + '}')
+                # Convert code blocks
+                elif line == '```':
+                    if latex_lines and began_verbatim:
+                        latex_lines.append('\\end{verbatim}')
+                        began_verbatim = False
+                    else:
+                        latex_lines.append('\\begin{verbatim}')
+                        began_verbatim = True
+                # Inline code
+                elif line[0] == '`' and line[-1] == '`':
+                    latex_lines.append('\\texttt{' + line.replace('`', '') + '}')
+                # Math blocks
+                elif line == '$' or line == '$$':
+                    began_math = not began_math
+                else:
+                    latex_lines.append(line)
         else:
-            latex_lines.append(line)
-    latex_lines.append('\\end{document}')
+            lines = cell[1]
+            latex_lines.append("\\begin{verbatim}")
+            for l in lines:
+                latex_lines.append(l)
+            latex_lines.append("\\end{verbatim}")
+    latex_lines.append('\\end{document}')   
     return latex_lines
 
 # RUN ON SAMPLE
-latex_lines = markdown_to_latex(all_markdown_lines)
+latex_lines = markdown_to_latex(all_cells_simplified)
 print(*latex_lines, sep='\n', file=open('latex.tex', 'w'))
-os.system('pdflatex latex.tex')
+# os.system('pdflatex latex.tex')
