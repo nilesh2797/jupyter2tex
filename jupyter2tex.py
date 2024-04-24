@@ -1,7 +1,8 @@
 from jupyter_notebook_parser import JupyterNotebookParser
+from format_utils import PROJECT
 import re, os
 
-parsed = JupyterNotebookParser('sample2.ipynb')
+parsed = JupyterNotebookParser('sample.ipynb')
 all_cells = parsed.get_all_cells()
 all_cells_simplified = []
 for x in all_cells:
@@ -9,7 +10,6 @@ for x in all_cells:
     source = [c for c in x['source']]
     all_cells_simplified.append((type, source))
 all_markdown_lines = [y for x in parsed.get_markdown_cell_sources() for y in x.split('\n')]
-print(all_markdown_lines)
 enum_i = []
 item_i = []
 def count_spaces(l):
@@ -106,6 +106,7 @@ def process_hlines(line):
         if count >= 3:
             lines[i] = "\n\\noindent\\rule{\\textwidth}{1pt}"
     return ''.join(lines)
+
 def markdown_to_latex_link(markdown_link):
     match = re.match(r'\[([^\]]+)\]\((.*?)\)', markdown_link)
     if match:
@@ -115,6 +116,7 @@ def markdown_to_latex_link(markdown_link):
         return latex_link
     else:
         return None
+
 def preprocess(line):
     # replace any *_* with *\_*
     line = line.replace('_','\_')
@@ -151,7 +153,7 @@ def is_part_of_special_block(line, began_math, began_verbatim):
     return line.startswith('```') or line.startswith('$') or line.startswith('$$') or line.startswith('```') or began_math or began_verbatim
 
 def markdown_to_latex(cells):
-    latex_lines = ['\\documentclass{article}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\begin{document}']
+    latex_lines = ['\\documentclass{article}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{booktabs}\n\\begin{document}']
     for cell in cells:
         print(cell)
         if cell[0] == 'markdown':
@@ -190,15 +192,26 @@ def markdown_to_latex(cells):
                     latex_lines.append(line)
         else:
             lines = cell[1]
-            latex_lines.append("\\begin{verbatim}")
-            for l in lines:
-                latex_lines.append(l)
-            latex_lines.append("\\end{verbatim}")
+            if lines[0].startswith('''#%capture code'''):
+                lines = lines[1:]
+                latex_lines.append("\\begin{verbatim}")
+                for l in lines:
+                    latex_lines.append(l.strip())
+                latex_lines.append("\\end{verbatim}")
+            else:
+                for line in lines:
+                    matches = re.findall(r"display_table\(([^)]+),\s*([^)]+)\)", line)
+                    for _, name in matches:
+                        name = name.replace("'", "").replace('"', '')
+                        fname = f'{PROJECT}/{name}.tex'
+                        if os.path.exists(fname):
+                            latex_lines.append(f'\\input{{{fname}}}')
+
     for i in range(item_depth):
         latex_lines.append("\\end{itemize}")
     for i in range(len(enum_i)):
         latex_lines.append("\\end{enumerate}")
-    latex_lines.append('\\end{document}')   
+    latex_lines.append('\\end{document}')
     return latex_lines
 
 # RUN ON SAMPLE
