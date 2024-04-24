@@ -216,7 +216,16 @@ def is_part_of_special_block(line, began_math, began_verbatim):
     return line.startswith('```') or line.startswith('$') or line.startswith('$$') or line.startswith('```') or began_math or began_verbatim
 
 def markdown_to_latex(cells):
-    latex_lines = ['\\documentclass{article}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{booktabs}\n\\usepackage{listings}\n\\begin{document}']
+    latex_lines = ['\\documentclass{article}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{booktabs}\n\\usepackage{amsmath}\n\\usepackage{amssymb}\n\\usepackage{mathtools}\n\\usepackage{listings}\n\\usepackage[letterpaper, portrait, margin=1in]{geometry}']
+    try:
+        f = open(f"{PROJECT}/setup.txt")
+        lines = f.readlines()
+        f.close()
+    except FileNotFoundError:
+        lines = ''
+    print("LINES", lines)
+    for line in lines:
+        latex_lines.append(line)
     for cell in cells:
         if cell[0] == 'markdown':
             lines = cell[1]
@@ -248,7 +257,7 @@ def markdown_to_latex(cells):
                 elif line == '$' or line == '$$':
                     began_math = not began_math
                 else:
-                    latex_lines.append(line.replace('\n', ''))
+                    latex_lines.append(line.strip())
         else:
             code_lines = cell[1]
             output_lines = cell[2]
