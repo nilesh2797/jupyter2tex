@@ -1,6 +1,47 @@
 from jupyter_notebook_parser import JupyterNotebookParser
-from format_utils import PROJECT
 import re, os
+
+PROJECT = 'Results'
+import os
+from IPython.display import display
+os.makedirs(PROJECT, exist_ok=True)
+
+def display_table(df, name):
+    display(df)
+    df.to_latex(f'{PROJECT}/{name}.tex', index=False)
+
+import matplotlib.pyplot as plt
+def display_figure(plt_fig, name):
+    plt.show()
+    plt_fig.savefig(f'{PROJECT}/{name}.pdf', bbox_inches='tight')
+
+################################################################################
+    
+import ast
+class FunctionCallExtractor(ast.NodeVisitor):
+    def __init__(self):
+        self.function_calls = []
+
+    def visit_Call(self, node):
+        if isinstance(node.func, ast.Name):
+            func_name = node.func.id
+        elif isinstance(node.func, ast.Attribute):
+            func_name = ast.unparse(node.func)
+        else:
+            func_name = "unknown_function"
+
+        args = [ast.unparse(arg) for arg in node.args]
+        kwargs = {kw.arg: ast.unparse(kw.value) for kw in node.keywords}
+        self.function_calls.append((func_name, args, kwargs))
+        self.generic_visit(node)
+
+################################################################################
+
+def extract_function_calls(code):
+    tree = ast.parse(code)
+    extractor = FunctionCallExtractor()
+    extractor.visit(tree)
+    return extractor.function_calls
 
 parsed = JupyterNotebookParser('sample.ipynb')
 all_cells = parsed.get_all_cells()
@@ -9,9 +50,12 @@ for x in all_cells:
     type = x['cell_type']
     source = [c for c in x['source']]
     all_cells_simplified.append((type, source))
+
 all_markdown_lines = [y for x in parsed.get_markdown_cell_sources() for y in x.split('\n')]
+
 enum_i = []
 item_i = []
+
 def count_spaces(l):
     ret = 0
     first = 0
@@ -59,6 +103,7 @@ def enumerate(line):
     
     # ELSE
     return [''.join(pre), line]
+
 def first_non_whitespace(s):
     for c in s:
         if not c.isspace():
@@ -70,6 +115,7 @@ def only_dashes(l):
         if not (c.isspace() or c == '-'):
             return False        
     return True
+
 item_depth = -1
 def itemize(line):
     global item_depth
@@ -126,9 +172,7 @@ def preprocess(line):
     line = re.sub(r'\*\*(.*?)\*\*', r'\\textbf{\1}', line)
     line = re.sub(r'\*(.*?)\*', r'\\textit{\1}', line)
     # ENUMERATE
-    print("BEFORE ENUMERATE", line)
     ret = enumerate(line)
-    print("OUT OF ENUMERATE", ret)
 
     # ITEMIZE
     other_ret = itemize(ret[-1])
@@ -155,18 +199,14 @@ def is_part_of_special_block(line, began_math, began_verbatim):
 def markdown_to_latex(cells):
     latex_lines = ['\\documentclass{article}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{booktabs}\n\\begin{document}']
     for cell in cells:
-        print(cell)
         if cell[0] == 'markdown':
             lines = cell[1]
             began_verbatim = False; began_math = False
             lines = [y for x in lines for y in split_on_dollar_signs(x)]
             lines = [y for x in lines for y in split_on_verbatim_signs(x)]
             for line in lines:
-                print("OH NO", line)
                 if not is_part_of_special_block(line, began_math, began_verbatim):
                     line = preprocess(line)
-                print(line)
-                print()
                 # Convert headers
                 if line.strip().startswith('# '):
                     latex_lines.append('\\section{' + line[2:] + '}')
@@ -199,13 +239,21 @@ def markdown_to_latex(cells):
                     latex_lines.append(l.strip())
                 latex_lines.append("\\end{verbatim}")
             else:
-                for line in lines:
-                    matches = re.findall(r"display_table\(([^)]+),\s*([^)]+)\)", line)
-                    for _, name in matches:
-                        name = name.replace("'", "").replace('"', '')
-                        fname = f'{PROJECT}/{name}.tex'
-                        if os.path.exists(fname):
-                            latex_lines.append(f'\\input{{{fname}}}')
+                fn_calls = extract_function_calls('\n'.join(lines))
+                if fn_calls is not None and len(fn_calls) > 0:
+                    for fn_name, args, kwargs in fn_calls:
+                        if fn_name == 'display_table':
+                            name = args[1] if len(args) > 1 else kwargs.get('name')
+                            name = name.replace("'", "").replace('"', '')
+                            fname = f'{PROJECT}/{name}.tex'
+                            if os.path.exists(fname):
+                                latex_lines.append(f'\\input{{{fname}}}')
+                        # elif fn_name == 'display_figure':
+                        #     name = args[1] if len(args) > 1 else kwargs.get('name')
+                        #     name = name.replace("'", "").replace('"', '')
+                        #     fname = f'{PROJECT}/{name}.tex'
+                        #     if os.path.exists(fname):
+                        #         latex_lines.append(f'\\input{{{fname}}}')
 
     for i in range(item_depth):
         latex_lines.append("\\end{itemize}")
