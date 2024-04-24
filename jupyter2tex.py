@@ -36,6 +36,16 @@ def display_figure(plt_fig, name, centering=True, width=0.5, caption=""):
     sep='\n'
     )
 
+def setup(title="Title", authors=[], abstract=""):
+    title = "\\title{" + title + "}"
+    authors = '\\author{' + '\\and '.join(authors) + '}'
+    bd = '\\begin{document} \maketitle'
+    abstract = "\\begin{abstract}" + abstract + "\\end{abstract}"
+
+    s = title + "\n" + authors + "\n" + bd + "\n" + abstract
+    f = open(f'{PROJECT}/setup.txt', 'w')
+    f.write(s)
+    f.close()
 ################################################################################
     
 import ast
@@ -61,18 +71,6 @@ def extract_function_calls(code):
     extractor = FunctionCallExtractor()
     extractor.visit(tree)
     return extractor.function_calls
-
-################################################################################
-
-parsed = JupyterNotebookParser('sample.ipynb')
-all_cells = parsed.get_all_cells()
-all_cells_simplified = []
-for x in all_cells:
-    type = x['cell_type']
-    source = [c for c in x['source']]
-    all_cells_simplified.append((type, source))
-
-all_markdown_lines = [y for x in parsed.get_markdown_cell_sources() for y in x.split('\n')]
 
 enum_i = []
 item_i = []
@@ -218,7 +216,13 @@ def is_part_of_special_block(line, began_math, began_verbatim):
     return line.startswith('```') or line.startswith('$') or line.startswith('$$') or line.startswith('```') or began_math or began_verbatim
 
 def markdown_to_latex(cells):
-    latex_lines = ['\\documentclass{article}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{booktabs}\n\\usepackage{listings}\n\\begin{document}']
+    latex_lines = ['\\documentclass{article}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{booktabs}\n\\usepackage{amsmath}\n\\usepackage{amssymb}\n\\usepackage{mathtools}\n\\usepackage{listings}\n\\usepackage[letterpaper, portrait, margin=1in]{geometry}']
+    f = open(f"{PROJECT}/setup.txt")
+    lines = f.readlines()
+    f.close()
+    print("LINES", lines)
+    for line in lines:
+        latex_lines.append(line)
     for cell in cells:
         if cell[0] == 'markdown':
             lines = cell[1]
@@ -282,8 +286,3 @@ def markdown_to_latex(cells):
         latex_lines.append("\\end{enumerate}")
     latex_lines.append('\\end{document}')
     return latex_lines
-
-# RUN ON SAMPLE
-# latex_lines = markdown_to_latex(all_cells_simplified)
-# print(*latex_lines, sep='\n', file=open('latex.tex', 'w'))
-# os.system('pdflatex latex.tex')
