@@ -6,14 +6,35 @@ import os
 from IPython.display import display
 os.makedirs(PROJECT, exist_ok=True)
 
-def display_table(df, name):
+def display_table(df, name, centering=True, caption="", label=None):
     display(df)
-    df.to_latex(f'{PROJECT}/{name}.tex', index=False)
+    print(*[
+        f'\\begin{{table}}[h]',
+        f'\\centering' if centering else '',
+        df.to_latex(index=False),
+        f'\\caption{{{caption}}}',
+        f'\\label{{{label}}}' if label is not None else '',
+        f'\\end{{table}}'
+    ],
+    file=open(f'{PROJECT}/{name}.tex', 'w'),
+    sep='\n'
+    )
 
 import matplotlib.pyplot as plt
-def display_figure(plt_fig, name):
+def display_figure(plt_fig, name, centering=True, width=0.5, caption=""):
     plt.show()
-    plt_fig.savefig(f'{PROJECT}/{name}.pdf', bbox_inches='tight')
+    fname = f'{PROJECT}/{name}.pdf'
+    plt_fig.savefig(fname, bbox_inches='tight')
+    print(*[
+        f'\\begin{{figure}}[h]',
+        f'\\centering' if centering else '',
+        f'\\includegraphics[width={width}\\textwidth]{{{fname}}}',
+        f'\\caption{{{caption}}}',
+        f'\\end{{figure}}'
+    ],
+    file=open(fname.replace('.pdf', '.tex'), 'w'),
+    sep='\n'
+    )
 
 def setup(title="Title", authors=[], abstract=""):
     title = "\\title{" + title + "}"
@@ -44,8 +65,6 @@ class FunctionCallExtractor(ast.NodeVisitor):
         kwargs = {kw.arg: ast.unparse(kw.value) for kw in node.keywords}
         self.function_calls.append((func_name, args, kwargs))
         self.generic_visit(node)
-
-################################################################################
 
 def extract_function_calls(code):
     tree = ast.parse(code)
@@ -197,7 +216,7 @@ def is_part_of_special_block(line, began_math, began_verbatim):
     return line.startswith('```') or line.startswith('$') or line.startswith('$$') or line.startswith('```') or began_math or began_verbatim
 
 def markdown_to_latex(cells):
-    latex_lines = ['\\documentclass{article}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{booktabs}\n\\usepackage{amsmath}\n\\usepackage{amssymb}\n\\usepackage{mathtools}\n\\usepackage[letterpaper, portrait, margin=1in]{geometry}']
+    latex_lines = ['\\documentclass{article}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{booktabs}\n\\usepackage{amsmath}\n\\usepackage{amssymb}\n\\usepackage{mathtools}\n\\usepackage{listings}\n\\usepackage[letterpaper, portrait, margin=1in]{geometry}']
     try:
         f = open(f"{PROJECT}/setup.txt")
         lines = f.readlines()
@@ -238,15 +257,15 @@ def markdown_to_latex(cells):
                 elif line == '$' or line == '$$':
                     began_math = not began_math
                 else:
-                    latex_lines.append(line)
+                    latex_lines.append(line.strip())
         else:
             lines = cell[1]
             if lines[0].startswith('''#%capture code'''):
                 lines = lines[1:]
-                latex_lines.append("\\begin{verbatim}")
+                latex_lines.append("\\begin{lstlisting}[language=Python]")
                 for l in lines:
                     latex_lines.append(l.strip())
-                latex_lines.append("\\end{verbatim}")
+                latex_lines.append("\\end{lstlisting}")
             else:
                 fn_calls = extract_function_calls('\n'.join(lines))
                 if fn_calls is not None and len(fn_calls) > 0:
@@ -257,12 +276,13 @@ def markdown_to_latex(cells):
                             fname = f'{PROJECT}/{name}.tex'
                             if os.path.exists(fname):
                                 latex_lines.append(f'\\input{{{fname}}}')
-                        # elif fn_name == 'display_figure':
-                        #     name = args[1] if len(args) > 1 else kwargs.get('name')
-                        #     name = name.replace("'", "").replace('"', '')
-                        #     fname = f'{PROJECT}/{name}.tex'
-                        #     if os.path.exists(fname):
-                        #         latex_lines.append(f'\\input{{{fname}}}')
+                        elif fn_name == 'display_figure':
+                            name = args[1] if len(args) > 1 else kwargs.get('name')
+                            name = name.replace("'", "").replace('"', '')
+                            fname = f'{PROJECT}/{name}.tex'
+                            if os.path.exists(fname):
+                                latex_lines.append(f'\\input{{{fname}}}')
+
     for i in range(item_depth):
         latex_lines.append("\\end{itemize}")
     for i in range(len(enum_i)):

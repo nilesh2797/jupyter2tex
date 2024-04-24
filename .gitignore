@@ -3,7 +3,8 @@
 *.out
 *.pdf
 *.tex
-*.ipynb
+sample*.ipynb
+jupyter2tex.ipynb
 *.fls
 *.fdb_latexmk
 *.synctex.gz
