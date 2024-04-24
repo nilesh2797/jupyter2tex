@@ -1,8 +1,8 @@
 from jupyter_notebook_parser import JupyterNotebookParser
-import re, os
+import re, os, sys
 from jupyter2tex import markdown_to_latex
 
-parsed = JupyterNotebookParser('report.ipynb')
+parsed = JupyterNotebookParser(sys.argv[1])
 all_cells = parsed.get_all_cells()
 all_cells_simplified = []
 for x in all_cells:
