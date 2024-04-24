@@ -36,13 +36,15 @@ def display_figure(plt_fig, name, centering=True, width=0.5, caption=""):
     sep='\n'
     )
 
-def setup(title="Title", authors=[], abstract=""):
+def setup(title="Title", authors=[], abstract="", style_file=""):
+    if style_file != "":
+        style = "\\usepackage{" + style_file + "}"
     title = "\\title{" + title + "}"
     authors = '\\author{' + '\\and '.join(authors) + '}'
     bd = '\\begin{document} \maketitle'
     abstract = "\\begin{abstract}" + abstract + "\\end{abstract}"
 
-    s = title + "\n" + authors + "\n" + bd + "\n" + abstract
+    s = style + "\n" + title + "\n" + authors + "\n" + bd + "\n" + abstract
     f = open(f'{PROJECT}/setup.txt', 'w')
     f.write(s)
     f.close()
@@ -196,11 +198,11 @@ def preprocess(line):
     # ITEMIZE
     other_ret = itemize(ret[-1])
 
-    line = ''.join(ret[:-1]) + ''.join(other_ret)
+    line_pair = [''.join(ret[:-1]) + ''.join(other_ret[:-1]), other_ret[-1]]
     # HLINES
-    line = process_hlines(line)
+    line = process_hlines(line_pair[-1])
     # DONE
-    return line
+    return [line_pair[0], line]
 
 def split_on_dollar_signs(text):
     pattern = r'(\${1,2}.*?\${1,2})'
@@ -235,6 +237,11 @@ def markdown_to_latex(cells):
             for line in lines:
                 if not is_part_of_special_block(line, began_math, began_verbatim):
                     line = preprocess(line)
+                else:
+                    line = ["", line]
+                for l in line[:-1]:
+                    latex_lines.append(l)
+                line = line[-1]
                 # Convert headers
                 if line.strip().startswith('# '):
                     latex_lines.append('\\section{' + line[2:] + '}')
@@ -257,14 +264,14 @@ def markdown_to_latex(cells):
                 elif line == '$' or line == '$$':
                     began_math = not began_math
                 else:
-                    latex_lines.append(line.strip())
+                    latex_lines.append(line.replace('\n', ''))
         else:
             lines = cell[1]
             if lines[0].startswith('''#%capture code'''):
                 lines = lines[1:]
                 latex_lines.append("\\begin{lstlisting}[language=Python]")
                 for l in lines:
-                    latex_lines.append(l.strip())
+                    latex_lines.append(l.replace('\n', ''))
                 latex_lines.append("\\end{lstlisting}")
             else:
                 fn_calls = extract_function_calls('\n'.join(lines))
@@ -282,8 +289,7 @@ def markdown_to_latex(cells):
                             fname = f'{PROJECT}/{name}.tex'
                             if os.path.exists(fname):
                                 latex_lines.append(f'\\input{{{fname}}}')
-
-    for i in range(item_depth):
+    for i in range(item_depth+1):
         latex_lines.append("\\end{itemize}")
     for i in range(len(enum_i)):
         latex_lines.append("\\end{enumerate}")
