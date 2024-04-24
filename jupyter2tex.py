@@ -198,9 +198,12 @@ def is_part_of_special_block(line, began_math, began_verbatim):
 
 def markdown_to_latex(cells):
     latex_lines = ['\\documentclass{article}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{booktabs}\n\\usepackage{amsmath}\n\\usepackage{amssymb}\n\\usepackage{mathtools}\n\\usepackage[letterpaper, portrait, margin=1in]{geometry}']
-    f = open(f"{PROJECT}/setup.txt")
-    lines = f.readlines()
-    f.close()
+    try:
+        f = open(f"{PROJECT}/setup.txt")
+        lines = f.readlines()
+        f.close()
+    except FileNotFoundError:
+        lines = ''
     print("LINES", lines)
     for line in lines:
         latex_lines.append(line)
