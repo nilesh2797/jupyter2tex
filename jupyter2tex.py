@@ -266,15 +266,19 @@ def markdown_to_latex(cells):
                 else:
                     latex_lines.append(line.replace('\n', ''))
         else:
-            lines = cell[1]
-            if lines[0].startswith('''#%capture code'''):
-                lines = lines[1:]
-                latex_lines.append("\\begin{lstlisting}[language=Python]")
-                for l in lines:
-                    latex_lines.append(l.replace('\n', ''))
-                latex_lines.append("\\end{lstlisting}")
+            code_lines = cell[1]
+            output_lines = cell[2]
+            if code_lines[0].startswith('''#%display'''):
+                if 'code' in code_lines[0]:
+                    latex_lines.append("\\begin{lstlisting}[language=Python]")
+                    for l in code_lines[1:]:
+                        latex_lines.append(l.replace('\n', ''))
+                    latex_lines.append("\\end{lstlisting}")
+                if 'output' in code_lines[0]:
+                    for l in output_lines:
+                        latex_lines.append(l.replace('\n', ''))
             else:
-                fn_calls = extract_function_calls('\n'.join(lines))
+                fn_calls = extract_function_calls('\n'.join(code_lines))
                 if fn_calls is not None and len(fn_calls) > 0:
                     for fn_name, args, kwargs in fn_calls:
                         if fn_name == 'display_table':
