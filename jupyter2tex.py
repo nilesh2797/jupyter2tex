@@ -215,7 +215,7 @@ def split_on_verbatim_signs(text):
     return [part for part in parts if part.strip()]
 
 def is_part_of_special_block(line, began_math, began_verbatim):
-    return line.startswith('```') or line.startswith('$') or line.startswith('$$') or line.startswith('```') or began_math or began_verbatim
+    return line.startswith('`') or line.startswith('$') or line.startswith('$$') or line.startswith('```') or began_math or began_verbatim
 
 def markdown_to_latex(cells):
     latex_lines = ['\\documentclass{article}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{booktabs}\n\\usepackage{amsmath}\n\\usepackage{amssymb}\n\\usepackage{mathtools}\n\\usepackage{listings}\n\\usepackage[letterpaper, portrait, margin=1in]{geometry}']
@@ -260,7 +260,7 @@ def markdown_to_latex(cells):
                         began_verbatim = True
                 # Inline code
                 elif line[0] == '`' and line[-1] == '`':
-                    latex_lines.append('\\texttt{' + line.replace('`', '') + '}')
+                    latex_lines.append('\\verb+' + line.replace('`', '') + '+')
                 # Math blocks
                 elif line == '$' or line == '$$':
                     began_math = not began_math
@@ -278,22 +278,22 @@ def markdown_to_latex(cells):
                 if 'output' in code_lines[0]:
                     for l in output_lines:
                         latex_lines.append(l.replace('\n', ''))
-            else:
-                fn_calls = extract_function_calls('\n'.join(code_lines))
-                if fn_calls is not None and len(fn_calls) > 0:
-                    for fn_name, args, kwargs in fn_calls:
-                        if fn_name == 'display_table':
-                            name = args[1] if len(args) > 1 else kwargs.get('name')
-                            name = name.replace("'", "").replace('"', '')
-                            fname = f'{PROJECT}/{name}.tex'
-                            if os.path.exists(fname):
-                                latex_lines.append(f'\\input{{{fname}}}')
-                        elif fn_name == 'display_figure':
-                            name = args[1] if len(args) > 1 else kwargs.get('name')
-                            name = name.replace("'", "").replace('"', '')
-                            fname = f'{PROJECT}/{name}.tex'
-                            if os.path.exists(fname):
-                                latex_lines.append(f'\\input{{{fname}}}')
+            
+            fn_calls = extract_function_calls('\n'.join(code_lines))
+            if fn_calls is not None and len(fn_calls) > 0:
+                for fn_name, args, kwargs in fn_calls:
+                    if fn_name == 'display_table':
+                        name = args[1] if len(args) > 1 else kwargs.get('name')
+                        name = name.replace("'", "").replace('"', '')
+                        fname = f'{PROJECT}/{name}.tex'
+                        if os.path.exists(fname):
+                            latex_lines.append(f'\\input{{{fname}}}')
+                    elif fn_name == 'display_figure':
+                        name = args[1] if len(args) > 1 else kwargs.get('name')
+                        name = name.replace("'", "").replace('"', '')
+                        fname = f'{PROJECT}/{name}.tex'
+                        if os.path.exists(fname):
+                            latex_lines.append(f'\\input{{{fname}}}')
     for i in range(item_depth+1):
         latex_lines.append("\\end{itemize}")
     for i in range(len(enum_i)):
