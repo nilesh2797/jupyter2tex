@@ -40,7 +40,7 @@ def setup(title="Title", authors=[], abstract="", style_file=""):
     if style_file != "":
         style = "\\usepackage{" + style_file + "}"
     title = "\\title{" + title + "}"
-    authors = '\\author{' + '\\and '.join(authors) + '}'
+    authors = '\\author{' + '\\And '.join(authors) + '}'
     bd = '\\begin{document} \maketitle'
     abstract = "\\begin{abstract}" + abstract + "\\end{abstract}"
 
