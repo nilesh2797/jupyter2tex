@@ -240,7 +240,8 @@ def markdown_to_latex(cells):
                 else:
                     line = ["", line]
                 for l in line[:-1]:
-                    latex_lines.append(l)
+                    if l:
+                        latex_lines.append(l)
                 line = line[-1]
                 # Convert headers
                 if line.strip().startswith('# '):
